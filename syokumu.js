@@ -1,7 +1,7 @@
 /***************************************************
  * (A) 連携先URLなどの設定 (例：実際には適宜修正)
  ***************************************************/
-const scriptURL = "https://script.google.com/macros/s/AKfycb.../exec";   // Google Apps Scriptなど
+const scriptURL = "https://script.google.com/macros/s/AKfycbyYmqbjwwkZlxWNfFVZi8ORT0mHw0sh9VlpYBcVsYz_UZSB63OM6LOya0UAZgZgCyhGpw/exec";   // Google Apps Scriptなど
 const difyUploadURL = "https://api.dify.ai/v1/files/upload";             // 例
 const difyAPIKey = "app-nec0NdADJDdpecQKQYvtxzmD";                        // ダミーキー
 
@@ -622,8 +622,8 @@ async function handleDownloadPDF() {
   const sendData = {
     createdDate: window.currentDateString || "",
     name: docVal('input-name'),
-    tel: docVal('input-tel'),
-    mail: docVal('input-mail')
+    phone: docVal('input-tel'),
+    email: docVal('input-mail')
   };
   try {
     const response = await fetch(scriptURL, {
