@@ -1,14 +1,16 @@
 <!DOCTYPE html>
 <html lang="ja">
+
 <head>
   <meta charset="UTF-8">
-  <title>職務経歴書 入力フォーム＋プレビュー</title>
+  <title>職務経歴書 </title>
   <!-- 外部CSS -->
   <link rel="stylesheet" href="syokumu.css">
   <!-- html2canvas と jsPDF をCDNから読み込み -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
 </head>
+
 <body>
   <div class="container">
     <!-- 左カラム -->
@@ -19,53 +21,10 @@
           <span class="dash">-</span>
           <span class="cv">CV</span>
         </h1>
-        <h2>[完全無料] 履歴書・職務経歴書自動作成サービス</h2>
+        <h2>履歴書・職務経歴書作成サービス</h2>
       </div>
 
-      <!-- 選択ガイド -->
-      <table class="choice-box">
-        <tr>
-          <td>
-            <strong>
-              既に経歴書をお持ちの方は、➀にお進みください（予想作成時間３０秒）<br>
-              お持ちでない方は、②にお進みください。（予想作成時間５分）
-            </strong>
-          </td>
-        </tr>
-      </table>
-      <table class="first-box">
-        <tr>
-          <td>
-            <strong>➀に当てはまる方は、以下の項目への入力をお願いします。</strong>
-          </td>
-        </tr>
-      </table>
 
-      <!-- ファイルアップロード -->
-      <div class="form-group upload-wrapper">
-        <label for="resume-file" class="upload-label">
-          1. 経歴書などをお持ちの場合アップロードしてください。
-        </label>
-        <div class="upload-area" onclick="document.getElementById('resume-file').click()">
-          <p class="upload-text">
-            PDFもしくは、docs形式のデータをアップロードしてください。
-          </p>
-        </div>
-        <input type="file" id="resume-file" accept=".pdf,.doc,.docx" style="display: none">
-      </div>
-
-      <!-- 一括生成ボタン -->
-      <button id="bulk-generate-btn" class="btn btn-primary">
-        一括生成する
-      </button>
-
-      <table class="second-box">
-        <tr>
-          <td>
-            <strong>②に当てはまる方は、以下の項目への入力をお願いします。</strong>
-          </td>
-        </tr>
-      </table>
 
       <!-- 基本情報 -->
       <div class="section-title">基本情報</div>
@@ -88,7 +47,7 @@
       <div class="section-title">職務要約</div>
       <textarea class="simple-textarea" id="input-summary" placeholder="ここに職務要約を入力" maxlength="300"></textarea>
       <div id="char-counter">0 / 300字</div>
-      
+
       <!-- 職歴 -->
       <div class="section-title">職務経歴</div>
       <div id="career-container">
@@ -161,17 +120,23 @@
       <div class="section-title">自己PR</div>
       <textarea class="simple-textarea" id="input-pr"></textarea>
 
-       <!-- PDFダウンロードボタンを中央寄せ -->
-  <div style="text-align: center; margin-top: 24px;">
-    <button id="download-pdf" style="padding:8px 16px; font-size:0.9rem; cursor:pointer; border-radius: 20px;">
-      PDFダウンロード
-    </button>
-  </div>
-</div>
+      <!-- PDFダウンロードボタンを中央寄せ -->
+      <div style="text-align: center; margin-top: 24px;">
+        <button id="download-pdf" style="padding:8px 16px; font-size:0.9rem; cursor:pointer; border-radius: 20px;">
+          PDFダウンロード
+        </button>
+      </div>
+    </div>
 
     <!-- 右カラム（プレビュー） -->
-    <div class="right">
-      <div class="resume-pages-wrap" id="resumePages">
+    <div class="right" id="preview-right">
+      <!-- ズームコントロール -->
+      <div class="zoom-controls" id="zoom-controls">
+        <button class="zoom-btn" id="zoom-out" title="縮小">−</button>
+        <span class="zoom-level" id="zoom-level">100%</span>
+        <button class="zoom-btn" id="zoom-in" title="拡大">＋</button>
+      </div>
+      <div class="resume-pages-wrap" id="resumePages" style="transform-origin: top center;">
         <!-- JavaScriptでプレビュー内容が動的に生成されます -->
       </div>
     </div><!-- /right -->
@@ -179,5 +144,40 @@
 
   <!-- JavaScriptファイル -->
   <script src="syokumu.js"></script>
+
+  <!-- ズーム機能 -->
+  <script>
+    (function () {
+      let zoomLevel = 100;
+      const MIN_ZOOM = 30;
+      const MAX_ZOOM = 200;
+      const STEP = 10;
+      const target = document.getElementById('resumePages');
+      const display = document.getElementById('zoom-level');
+      const btnIn = document.getElementById('zoom-in');
+      const btnOut = document.getElementById('zoom-out');
+
+      function applyZoom() {
+        const scale = zoomLevel / 100;
+        target.style.transform = 'scale(' + scale + ')';
+        display.textContent = zoomLevel + '%';
+      }
+
+      btnIn.addEventListener('click', function () {
+        if (zoomLevel < MAX_ZOOM) {
+          zoomLevel += STEP;
+          applyZoom();
+        }
+      });
+
+      btnOut.addEventListener('click', function () {
+        if (zoomLevel > MIN_ZOOM) {
+          zoomLevel -= STEP;
+          applyZoom();
+        }
+      });
+    })();
+  </script>
 </body>
+
 </html>

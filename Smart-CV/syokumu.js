@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', () => {
   console.log("[DEBUG] DOMContentLoaded: setting up...");
 
   const today = new Date();
-  window.currentDateString = `${today.getFullYear()}年${String(today.getMonth()+1).padStart(2,'0')}月${String(today.getDate()).padStart(2,'0')}日`;
+  window.currentDateString = `${today.getFullYear()}年${String(today.getMonth() + 1).padStart(2, '0')}月${String(today.getDate()).padStart(2, '0')}日`;
 
   // イベントバインド等セットアップ
   setupBindings();
@@ -55,7 +55,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // 職務要約の文字数カウント
   const summaryInput = document.getElementById("input-summary");
-  const charCounter  = document.getElementById("char-counter");
+  const charCounter = document.getElementById("char-counter");
   if (summaryInput && charCounter) {
     summaryInput.addEventListener("input", () => {
       const currentLength = summaryInput.value.length;
@@ -379,56 +379,93 @@ function updatePreviewPages() {
   currentPage.appendChild(makeTitleBlock());
 
   // 職務要約
-  currentPage.appendChild(makeSectionTitle('職務要約'));
+  const summaryTitle = makeSectionTitle('職務要約');
+  currentPage.appendChild(summaryTitle);
   {
     const text = docVal('input-summary');
     const summaryBlock = document.createElement('div');
     summaryBlock.classList.add('summary-block');
     summaryBlock.textContent = text;
     if (isOverflowAfterAppend(currentPage, summaryBlock)) {
+      // タイトルごと次ページへ移動
+      currentPage.removeChild(summaryTitle);
       currentPage = createNewPage();
-      currentPage.appendChild(makeSectionTitle('職務要約'));
+      currentPage.appendChild(summaryTitle);
+      currentPage.appendChild(summaryBlock);
+    } else {
+      // isOverflowAfterAppend 内で appendChild して overflow なら removeChild しているので、
+      // false の場合はまだ append されていない状態に戻っている可能性があるが、
+      // この関数の実装を見ると:
+      // pageElem.appendChild(blockElem);
+      // const isOverflow = ...
+      // pageElem.removeChild(blockElem);
+      // となっているので、手動で追加しなおす必要がある。 
+      // ★修正: isOverflowAfterAppend は追加してチェックして削除する関数なので、
+      // ここで再度 appendChild する。
+      currentPage.appendChild(summaryBlock);
     }
-    currentPage.appendChild(summaryBlock);
   }
 
   // 職歴
-  currentPage.appendChild(makeSectionTitle('職歴'));
+  const careerTitle = makeSectionTitle('職歴');
+  currentPage.appendChild(careerTitle);
   for (let i = 1; i <= careerCount; i++) {
     const block = makeCareerBlock(i);
     if (isOverflowAfterAppend(currentPage, block)) {
-      currentPage = createNewPage();
-      currentPage.appendChild(makeSectionTitle('職歴'));
+      if (i === 1) {
+        // 1件目で溢れるならタイトルごと移動
+        currentPage.removeChild(careerTitle);
+        currentPage = createNewPage();
+        currentPage.appendChild(careerTitle);
+      } else {
+        currentPage = createNewPage();
+        currentPage.appendChild(makeSectionTitle('職歴 (続き)'));
+      }
     }
     currentPage.appendChild(block);
   }
 
   // 免許・資格
-  currentPage.appendChild(makeSectionTitle('免許・資格'));
+  const licenseTitle = makeSectionTitle('免許・資格');
+  currentPage.appendChild(licenseTitle);
   for (let i = 1; i <= licenseCount; i++) {
     const table = makeLicenseTable(i);
     table.classList.add("license-table");
     if (isOverflowAfterAppend(currentPage, table)) {
-      currentPage = createNewPage();
-      currentPage.appendChild(makeSectionTitle('免許・資格'));
+      if (i === 1) {
+        currentPage.removeChild(licenseTitle);
+        currentPage = createNewPage();
+        currentPage.appendChild(licenseTitle);
+      } else {
+        currentPage = createNewPage();
+        currentPage.appendChild(makeSectionTitle('免許・資格 (続き)'));
+      }
     }
     currentPage.appendChild(table);
   }
 
   // 語学
-  currentPage.appendChild(makeSectionTitle('語学'));
+  const langTitle = makeSectionTitle('語学');
+  currentPage.appendChild(langTitle);
   for (let i = 1; i <= langCount; i++) {
     const table = makeLangTable(i);
     table.classList.add("lang-table");
     if (isOverflowAfterAppend(currentPage, table)) {
-      currentPage = createNewPage();
-      currentPage.appendChild(makeSectionTitle('語学'));
+      if (i === 1) {
+        currentPage.removeChild(langTitle);
+        currentPage = createNewPage();
+        currentPage.appendChild(langTitle);
+      } else {
+        currentPage = createNewPage();
+        currentPage.appendChild(makeSectionTitle('語学 (続き)'));
+      }
     }
     currentPage.appendChild(table);
   }
 
   // 活かせる経験・知識・技術
-  currentPage.appendChild(makeSectionTitle('活かせる経験・知識・技術'));
+  const skillTitle = makeSectionTitle('活かせる経験・知識・技術');
+  currentPage.appendChild(skillTitle);
   {
     const text = docVal('input-skill');
     const block = document.createElement('div');
@@ -436,14 +473,18 @@ function updatePreviewPages() {
     block.style.wordWrap = 'break-word';
     block.textContent = text;
     if (isOverflowAfterAppend(currentPage, block)) {
+      currentPage.removeChild(skillTitle);
       currentPage = createNewPage();
-      currentPage.appendChild(makeSectionTitle('活かせる経験・知識・技術'));
+      currentPage.appendChild(skillTitle);
+      currentPage.appendChild(block);
+    } else {
+      currentPage.appendChild(block);
     }
-    currentPage.appendChild(block);
   }
 
   // 自己PR
-  currentPage.appendChild(makeSectionTitle('自己PR'));
+  const prTitle = makeSectionTitle('自己PR');
+  currentPage.appendChild(prTitle);
   {
     const text = docVal('input-pr');
     const block = document.createElement('div');
@@ -451,10 +492,13 @@ function updatePreviewPages() {
     block.style.wordWrap = 'break-word';
     block.textContent = text;
     if (isOverflowAfterAppend(currentPage, block)) {
+      currentPage.removeChild(prTitle);
       currentPage = createNewPage();
-      currentPage.appendChild(makeSectionTitle('自己PR'));
+      currentPage.appendChild(prTitle);
+      currentPage.appendChild(block);
+    } else {
+      currentPage.appendChild(block);
     }
-    currentPage.appendChild(block);
   }
 }
 
@@ -497,16 +541,16 @@ function makeSectionTitle(txt) {
  * (J) 職歴ブロック
  ***************************************************/
 function makeCareerBlock(i) {
-  const period      = docVal(`career${i}-period`);
-  const company     = docVal(`career${i}-company`);
-  const employment  = docVal(`career${i}-employment`);
-  const position    = docVal(`career${i}-position`);
-  const business    = docVal(`career${i}-business`);
-  const duty        = docVal(`career${i}-duty`);
+  const period = docVal(`career${i}-period`);
+  const company = docVal(`career${i}-company`);
+  const employment = docVal(`career${i}-employment`);
+  const position = docVal(`career${i}-position`);
+  const business = docVal(`career${i}-business`);
+  const duty = docVal(`career${i}-duty`);
   const achievement = docVal(`career${i}-achievement`);
-  const empcount    = docVal(`career${i}-empcount`);
-  const capital     = docVal(`career${i}-capital`);
-  const market      = docVal(`career${i}-market`);
+  const empcount = docVal(`career${i}-empcount`);
+  const capital = docVal(`career${i}-capital`);
+  const market = docVal(`career${i}-market`);
 
   const wrapper = document.createElement('div');
   wrapper.style.marginBottom = '16px';
@@ -554,7 +598,7 @@ function makeCareerBlock(i) {
  * (K) 免許・資格テーブル
  ***************************************************/
 function makeLicenseTable(i) {
-  const y  = docVal(`license${i}-year`);
+  const y = docVal(`license${i}-year`);
   const mo = docVal(`license${i}-month`);
   const nm = docVal(`license${i}-name`);
   const table = document.createElement('table');
@@ -575,7 +619,7 @@ function makeLicenseTable(i) {
  * (L) 語学テーブル
  ***************************************************/
 function makeLangTable(i) {
-  const l  = docVal(`lang${i}-lang`);
+  const l = docVal(`lang${i}-lang`);
   const lv = docVal(`lang${i}-level`);
   const table = document.createElement('table');
   table.innerHTML = `
@@ -641,9 +685,15 @@ async function handleDownloadPDF() {
   const { jsPDF } = window.jspdf;
   const pdf = new jsPDF('portrait', 'pt', 'a4');
   const pages = document.querySelectorAll('.resume-page');
+
+  // ★ ズームの一時リセット
+  const resumePagesWrap = document.getElementById('resumePages');
+  const originalTransform = resumePagesWrap.style.transform;
+  resumePagesWrap.style.transform = 'none';
+
   for (let i = 0; i < pages.length; i++) {
     if (i > 0) pdf.addPage();
-    const canvas = await html2canvas(pages[i], { scale: 2 });
+    const canvas = await html2canvas(pages[i], { scale: 4 });
     const imgData = canvas.toDataURL('image/jpeg', 1.0);
     const pdfWidth = pdf.internal.pageSize.getWidth();
     const pdfHeight = pdf.internal.pageSize.getHeight();
@@ -653,6 +703,10 @@ async function handleDownloadPDF() {
     const imgHeightInPdf = imgHeightPx * scale;
     pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, imgHeightInPdf);
   }
+
+  // ★ ズームを元に戻す
+  resumePagesWrap.style.transform = originalTransform;
+
   pdf.save('職務経歴書.pdf');
   alert("PDFダウンロードが開始されました！");
   console.log("[DEBUG] PDF download complete.");

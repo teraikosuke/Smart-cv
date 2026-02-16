@@ -121,15 +121,15 @@ const resumeTemplate = `
           </tr>
           <!-- 12行 -->
           ${[...Array(12)].map((_, i) => {
-            const row = i + 1;
-            return `
+  const row = i + 1;
+  return `
               <tr id="edu-row-${row}" class="education-value">
                 <td class="education-year-value" id="edu-preview-year-${row}"></td>
                 <td class="education-container-month-value" id="edu-preview-month-${row}"></td>
                 <td class="education-history-value" id="edu-preview-work-${row}"></td>
               </tr>
             `;
-          }).join("")}
+}).join("")}
         </table>
       </div>
 
@@ -143,15 +143,15 @@ const resumeTemplate = `
           </tr>
           <!-- 6行 -->
           ${[...Array(6)].map((_, i) => {
-            const row = i + 1;
-            return `
+  const row = i + 1;
+  return `
               <tr id="skill-row-${row}" class="skill-value">
                 <td class="skill-year-value" id="skill-preview-year-${row}"></td>
                 <td class="skill-container-month-value" id="skill-preview-month-${row}"></td>
                 <td class="skill-history-value" id="skill-preview-history-${row}"></td>
               </tr>
             `;
-          }).join("")}
+}).join("")}
         </table>
       </div>
 
@@ -267,6 +267,96 @@ bindTextSync("#input-motivation", "#preview-motivation");
 bindTextSync("#input-pr", "#preview-pr");
 bindTextSync("#input-request", "#preview-request");
 
+const inputEvent = new Event("input", { bubbles: true });
+const POSTAL_CACHE = new Map();
+
+function normalizePostalCode(value) {
+  return String(value || "").replace(/[^0-9]/g, "");
+}
+
+function composeAddressFromResult(item) {
+  const part1 = item.prefecture || item.address1 || "";
+  const part2 = item.city || item.address2 || "";
+  const part3 = item.address3 || item.town || item.area || "";
+  return `${part1}${part2}${part3}`.trim();
+}
+
+function composeAddressKanaFromResult(item) {
+  const k1 = item.kana1 || "";
+  const k2 = item.kana2 || "";
+  const k3 = item.kana3 || "";
+  return `${k1}${k2}${k3}`.trim();
+}
+
+async function lookupAddressByPostalCode(postalCode) {
+  if (POSTAL_CACHE.has(postalCode)) {
+    return POSTAL_CACHE.get(postalCode);
+  }
+
+  const res = await fetch(
+    `https://zipcloud.ibsnet.co.jp/api/search?zipcode=${postalCode}`,
+    { mode: "cors" }
+  );
+  if (!res.ok) throw new Error("郵便番号検索APIに接続できませんでした。");
+
+  const data = await res.json();
+  if (data.status !== 200 || !Array.isArray(data.results) || data.results.length === 0) {
+    throw new Error("該当する郵便番号が見つかりませんでした。");
+  }
+
+  const result = {
+    address: composeAddressFromResult(data.results[0]),
+    furigana: composeAddressKanaFromResult(data.results[0]),
+  };
+  POSTAL_CACHE.set(postalCode, result);
+  return result;
+}
+
+function setupPostalAutoFill({ postalInputId, addressInputId, furiganaInputId }) {
+  const postalInput = document.getElementById(postalInputId);
+  const addressInput = document.getElementById(addressInputId);
+  const furiganaInput = furiganaInputId ? document.getElementById(furiganaInputId) : null;
+  if (!postalInput || !addressInput) return;
+
+  let latestRequest = 0;
+  const syncByPostal = async () => {
+    const postal = normalizePostalCode(postalInput.value);
+    if (postal.length !== 7) return;
+
+    const requestId = ++latestRequest;
+    try {
+      const { address, furigana } = await lookupAddressByPostalCode(postal);
+      if (requestId !== latestRequest) return;
+
+      if (addressInput.value !== address) {
+        addressInput.value = address;
+        addressInput.dispatchEvent(inputEvent);
+      }
+      if (furiganaInput && furiganaInput.value !== furigana) {
+        furiganaInput.value = furigana;
+        furiganaInput.dispatchEvent(inputEvent);
+      }
+    } catch (error) {
+      if (requestId === latestRequest) {
+        console.warn(error.message);
+      }
+    }
+  };
+
+  postalInput.addEventListener("input", syncByPostal);
+}
+
+setupPostalAutoFill({
+  postalInputId: "input-postal-code",
+  addressInputId: "input-address",
+  furiganaInputId: "input-address-furigana",
+});
+setupPostalAutoFill({
+  postalInputId: "input-alt-postal-code",
+  addressInputId: "input-alt-address",
+  furiganaInputId: "input-alt-address-furigana",
+});
+
 // 生年月日（年・月・日）
 const birthYear = document.getElementById("birth-year");
 const birthMonth = document.getElementById("birth-month");
@@ -302,22 +392,86 @@ photoInput.addEventListener("change", () => {
   }
   const reader = new FileReader();
   reader.onload = (e) => {
-    previewPhoto.src = e.target.result;
-    splitPagesIfOverflow();
+    // 画像バリデーション (比率と解像度)
+    const img = new Image();
+    img.onload = () => {
+      const w = img.naturalWidth;
+      const h = img.naturalHeight;
+      const ratio = w / h;
+
+      // 縦36～40mm、横24～30mm の比率チェック
+      // 最小: 24/40 = 0.60, 最大: 30/36 = 0.833...
+      // 多少の誤差(0.02程度)を許容する
+      if (ratio < 0.58 || ratio > 0.85) {
+        alert("写真のサイズ（縦横比）が規定外です。\n縦36～40mm、横24～30mm (比率 3:4 ～ 4:5 程度) の写真を使用してください。");
+        photoInput.value = "";
+        previewPhoto.src = "";
+        return;
+      }
+
+      // 解像度チェック (横24mm @ 300dpi ≒ 283px)
+      if (w < 280) {
+        alert("画像の解像度が低すぎます。横幅280px以上の画像を使用してください。");
+        photoInput.value = "";
+        previewPhoto.src = "";
+        return;
+      }
+
+      // OKなら表示
+      previewPhoto.src = e.target.result;
+      splitPagesIfOverflow();
+    };
+    img.src = e.target.result;
   };
   reader.readAsDataURL(file);
 });
 
-// 生年月日selectに値を入れる
+// 生年月日の初期化
 const yearNow = new Date().getFullYear();
-function populateYears(select) {
-  for (let y = 1900; y <= yearNow; y++) {
-    const opt = document.createElement("option");
-    opt.value = y;
-    opt.textContent = y;
-    select.appendChild(opt);
+const BIRTH_YEAR_MIN = 1900;
+
+function clampBirthYear(value) {
+  if (value === "") return "";
+  const text = String(value).trim();
+  if (!/^[0-9]+$/.test(text)) return "";
+  const numeric = Number.parseInt(text, 10);
+  if (Number.isNaN(numeric)) return "";
+  if (numeric < BIRTH_YEAR_MIN) return String(BIRTH_YEAR_MIN);
+  if (numeric > yearNow) return String(yearNow);
+  return String(numeric);
+}
+
+function initBirthYearInput() {
+  const birthYearUp = document.getElementById("birth-year-increase");
+  const birthYearDown = document.getElementById("birth-year-decrease");
+
+  birthYear.max = yearNow;
+  birthYear.min = BIRTH_YEAR_MIN;
+  birthYear.addEventListener("blur", () => {
+    const clamped = clampBirthYear(birthYear.value);
+    if (clamped !== birthYear.value) {
+      birthYear.value = clamped;
+    }
+    syncBirth();
+  });
+
+  function stepYear(delta) {
+    const current = clampBirthYear(birthYear.value) || String(yearNow);
+    const next = Number.parseInt(current, 10) + delta;
+    birthYear.value = clampBirthYear(next);
+    syncBirth();
+  }
+
+  if (birthYearUp) {
+    birthYearUp.addEventListener("click", () => stepYear(1));
+  }
+  if (birthYearDown) {
+    birthYearDown.addEventListener("click", () => stepYear(-1));
   }
 }
+
+initBirthYearInput();
+
 function populateMonths(select) {
   for (let i = 1; i <= 12; i++) {
     const opt = document.createElement("option");
@@ -326,7 +480,6 @@ function populateMonths(select) {
     select.appendChild(opt);
   }
 }
-populateYears(birthYear);
 populateMonths(birthMonth);
 
 for (let i = 1; i <= 31; i++) {
@@ -604,9 +757,14 @@ document.getElementById("pdf-save-btn").addEventListener("click", async () => {
   const pdf = new jsPDF("portrait", "pt", "a4");
   const pageElems = document.querySelectorAll(".resume-page");
 
+  // ★ ズームの一時リセット
+  const resumePages = document.getElementById("resume-pages");
+  const originalTransform = resumePages.style.transform;
+  resumePages.style.transform = "none";
+
   for (let i = 0; i < pageElems.length; i++) {
     if (i > 0) pdf.addPage();
-    const canvas = await html2canvas(pageElems[i], { scale: 2 });
+    const canvas = await html2canvas(pageElems[i], { scale: 4 });
     const imgData = canvas.toDataURL("image/jpeg", 1.0);
 
     const pdfWidth = pdf.internal.pageSize.getWidth();
@@ -619,6 +777,9 @@ document.getElementById("pdf-save-btn").addEventListener("click", async () => {
     pdf.addImage(imgData, "JPEG", 0, 0, pdfWidth, imgHeightInPdf);
   }
 
+  // ★ ズームを元に戻す
+  resumePages.style.transform = originalTransform;
+
   pdf.save("履歴書.pdf");
 });
 
@@ -630,8 +791,8 @@ document.getElementById("bulk-generate-btn").addEventListener("click", () => {
   const additional = document.getElementById("additional-info").value;
   alert(
     "『一括生成する』が押されました。ファイル=" +
-      file +
-      ", 情報=" +
-      additional
+    file +
+    ", 情報=" +
+    additional
   );
 });
