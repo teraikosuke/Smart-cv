@@ -429,48 +429,61 @@ photoInput.addEventListener("change", () => {
 // 生年月日の初期化
 const yearNow = new Date().getFullYear();
 const BIRTH_YEAR_MIN = 1900;
+const FUTURE_YEAR_MAX = yearNow + 5;
 
-function clampBirthYear(value) {
+function clampYear(value, maxYear = yearNow) {
   if (value === "") return "";
   const text = String(value).trim();
   if (!/^[0-9]+$/.test(text)) return "";
   const numeric = Number.parseInt(text, 10);
   if (Number.isNaN(numeric)) return "";
   if (numeric < BIRTH_YEAR_MIN) return String(BIRTH_YEAR_MIN);
-  if (numeric > yearNow) return String(yearNow);
+  if (numeric > maxYear) return String(maxYear);
   return String(numeric);
 }
 
-function initBirthYearInput() {
-  const birthYearUp = document.getElementById("birth-year-increase");
-  const birthYearDown = document.getElementById("birth-year-decrease");
+function setupYearInput(inputEl, upBtn, downBtn, onUpdate, { maxYear = yearNow } = {}) {
+  inputEl.min = BIRTH_YEAR_MIN;
+  inputEl.max = maxYear;
 
-  birthYear.max = yearNow;
-  birthYear.min = BIRTH_YEAR_MIN;
-  birthYear.addEventListener("blur", () => {
-    const clamped = clampBirthYear(birthYear.value);
-    if (clamped !== birthYear.value) {
-      birthYear.value = clamped;
+  const update = () => {
+    if (onUpdate) onUpdate();
+  };
+
+  inputEl.addEventListener("blur", () => {
+    const clamped = clampYear(inputEl.value, maxYear);
+    if (clamped !== inputEl.value) {
+      inputEl.value = clamped;
+      // Trigger input event to sync with preview if needed
+      inputEl.dispatchEvent(new Event("input"));
     }
-    syncBirth();
+    update();
   });
 
+  // Handle direct input
+  inputEl.addEventListener("input", update);
+
   function stepYear(delta) {
-    const current = clampBirthYear(birthYear.value) || String(yearNow);
+    const current = clampYear(inputEl.value, maxYear) || String(Math.min(yearNow, maxYear));
     const next = Number.parseInt(current, 10) + delta;
-    birthYear.value = clampBirthYear(next);
-    syncBirth();
+    inputEl.value = clampYear(next, maxYear);
+    inputEl.dispatchEvent(new Event("input"));
+    update();
   }
 
-  if (birthYearUp) {
-    birthYearUp.addEventListener("click", () => stepYear(1));
+  if (upBtn) {
+    upBtn.addEventListener("click", () => stepYear(1));
   }
-  if (birthYearDown) {
-    birthYearDown.addEventListener("click", () => stepYear(-1));
+  if (downBtn) {
+    downBtn.addEventListener("click", () => stepYear(-1));
   }
 }
 
-initBirthYearInput();
+// Attach to Birth Year
+const birthYearUp = document.getElementById("birth-year-increase");
+const birthYearDown = document.getElementById("birth-year-decrease");
+setupYearInput(birthYear, birthYearUp, birthYearDown, syncBirth);
+
 
 function populateMonths(select) {
   for (let i = 1; i <= 12; i++) {
@@ -505,6 +518,8 @@ const maxEduRows = 12;
 
 // 初期行(1行目)のDOM
 const defEduYear = eduContainer.querySelector(".edu-year");
+const defEduYearUp = eduContainer.querySelector(".edu-year-increase");
+const defEduYearDown = eduContainer.querySelector(".edu-year-decrease");
 const defEduMonth = eduContainer.querySelector(".edu-month");
 const defEduWork = eduContainer.querySelector(".edu-work");
 
@@ -526,16 +541,13 @@ function syncEduRow(leftYearEl, leftMonthEl, leftWorkEl, rowIndex) {
 
   doSync();
 }
+
+// Initialize first row
+setupYearInput(defEduYear, defEduYearUp, defEduYearDown, null, { maxYear: FUTURE_YEAR_MAX }); // sync is handled via 'input' event in syncEduRow
 syncEduRow(defEduYear, defEduMonth, defEduWork, 1);
 
 // 年月選択肢
-function populateYearMonth(selectYear, selectMonth) {
-  for (let y = 1900; y <= yearNow; y++) {
-    const opt = document.createElement("option");
-    opt.value = y;
-    opt.textContent = y;
-    selectYear.appendChild(opt);
-  }
+function populateMonthOnly(selectMonth) {
   for (let i = 1; i <= 12; i++) {
     const opt = document.createElement("option");
     opt.value = i;
@@ -543,7 +555,7 @@ function populateYearMonth(selectYear, selectMonth) {
     selectMonth.appendChild(opt);
   }
 }
-populateYearMonth(defEduYear, defEduMonth);
+populateMonthOnly(defEduMonth);
 
 document.getElementById("add-education-row").addEventListener("click", () => {
   if (currentEduRows >= maxEduRows) {
@@ -558,7 +570,13 @@ document.getElementById("add-education-row").addEventListener("click", () => {
   row.className = "row-container";
   row.innerHTML = `
     <div class="form-inline">
-      <select class="edu-year"><option value="">--</option></select>
+      <div class="year-input-wrap">
+        <input class="edu-year year-month-input" type="number" inputmode="numeric" placeholder="----" />
+        <div class="year-stepper" aria-hidden="true">
+          <button class="year-step-btn edu-year-increase" type="button" tabindex="-1">▲</button>
+          <button class="year-step-btn edu-year-decrease" type="button" tabindex="-1">▼</button>
+        </div>
+      </div>
       <select class="edu-month"><option value="">--</option></select>
       <input type="text" class="edu-work" placeholder="" />
     </div>
@@ -567,9 +585,13 @@ document.getElementById("add-education-row").addEventListener("click", () => {
 
   // populate
   const newYear = row.querySelector(".edu-year");
+  const newYearUp = row.querySelector(".edu-year-increase");
+  const newYearDown = row.querySelector(".edu-year-decrease");
   const newMonth = row.querySelector(".edu-month");
   const newWork = row.querySelector(".edu-work");
-  populateYearMonth(newYear, newMonth);
+
+  setupYearInput(newYear, newYearUp, newYearDown, null, { maxYear: FUTURE_YEAR_MAX });
+  populateMonthOnly(newMonth);
 
   // 同期
   syncEduRow(newYear, newMonth, newWork, rowIndex);
@@ -599,6 +621,8 @@ const maxSkillRows = 6;
 
 // 初期1行目
 const defLicenseYear = skillContainer.querySelector(".license-year");
+const defLicenseYearUp = skillContainer.querySelector(".license-year-increase");
+const defLicenseYearDown = skillContainer.querySelector(".license-year-decrease");
 const defLicenseMonth = skillContainer.querySelector(".license-month");
 const defSkillHistory = skillContainer.querySelector(".skill-history");
 
@@ -618,24 +642,13 @@ function syncSkillRow(yearEl, monthEl, histEl, rowIndex) {
   histEl.addEventListener("input", doSync);
   doSync();
 }
+
+// Initialize first row
+setupYearInput(defLicenseYear, defLicenseYearUp, defLicenseYearDown, null, { maxYear: FUTURE_YEAR_MAX });
 syncSkillRow(defLicenseYear, defLicenseMonth, defSkillHistory, 1);
 
 // 年月選択肢
-function populateYearMonthSkill(selectYear, selectMonth) {
-  for (let y = 1900; y <= yearNow; y++) {
-    const opt = document.createElement("option");
-    opt.value = y;
-    opt.textContent = y;
-    selectYear.appendChild(opt);
-  }
-  for (let i = 1; i <= 12; i++) {
-    const opt = document.createElement("option");
-    opt.value = i;
-    opt.textContent = i;
-    selectMonth.appendChild(opt);
-  }
-}
-populateYearMonthSkill(defLicenseYear, defLicenseMonth);
+populateMonthOnly(defLicenseMonth);
 
 document.getElementById("add-skill-row").addEventListener("click", () => {
   if (currentSkillRows >= maxSkillRows) {
@@ -650,7 +663,13 @@ document.getElementById("add-skill-row").addEventListener("click", () => {
   row.className = "row-container";
   row.innerHTML = `
     <div class="form-inline">
-      <select class="license-year"><option value="">--</option></select>
+      <div class="year-input-wrap">
+        <input class="license-year year-month-input" type="number" inputmode="numeric" placeholder="----" />
+        <div class="year-stepper" aria-hidden="true">
+          <button class="year-step-btn license-year-increase" type="button" tabindex="-1">▲</button>
+          <button class="year-step-btn license-year-decrease" type="button" tabindex="-1">▼</button>
+        </div>
+      </div>
       <select class="license-month"><option value="">--</option></select>
       <input type="text" class="skill-history" placeholder="" style="text-align: left;" />
     </div>
@@ -658,9 +677,13 @@ document.getElementById("add-skill-row").addEventListener("click", () => {
   skillContainer.appendChild(row);
 
   const yearEl = row.querySelector(".license-year");
+  const yearUp = row.querySelector(".license-year-increase");
+  const yearDown = row.querySelector(".license-year-decrease");
   const monthEl = row.querySelector(".license-month");
   const histEl = row.querySelector(".skill-history");
-  populateYearMonthSkill(yearEl, monthEl);
+
+  setupYearInput(yearEl, yearUp, yearDown, null, { maxYear: FUTURE_YEAR_MAX });
+  populateMonthOnly(monthEl);
 
   syncSkillRow(yearEl, monthEl, histEl, rowIndex);
 });

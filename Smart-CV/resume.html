@@ -68,14 +68,8 @@
         <label>生年月日</label>
         <div class="birthday-container">
           <div class="year-input-wrap">
-            <input
-              id="birth-year"
-              class="year-month-select year-month-input"
-              type="number"
-              inputmode="numeric"
-              min="1900"
-              placeholder="--"
-            />
+            <input id="birth-year" class="year-month-select year-month-input" type="number" inputmode="numeric"
+              min="1900" placeholder="--" />
             <div class="year-stepper" aria-hidden="true">
               <button id="birth-year-increase" class="year-step-btn" type="button" aria-label="生年を1つ増やす">▲</button>
               <button id="birth-year-decrease" class="year-step-btn" type="button" aria-label="生年を1つ減らす">▼</button>
@@ -165,9 +159,13 @@
         <!-- デフォルト1行目のみ -->
         <div class="row-container">
           <div class="form-inline">
-            <select class="edu-year">
-              <option value="">--</option>
-            </select>
+            <div class="year-input-wrap">
+              <input class="edu-year year-month-input" type="number" inputmode="numeric" placeholder="----" />
+              <div class="year-stepper" aria-hidden="true">
+                <button class="year-step-btn edu-year-increase" type="button" tabindex="-1">▲</button>
+                <button class="year-step-btn edu-year-decrease" type="button" tabindex="-1">▼</button>
+              </div>
+            </div>
             <select class="edu-month">
               <option value="">--</option>
             </select>
@@ -190,9 +188,13 @@
         <!-- デフォルト1行目のみ -->
         <div class="row-container">
           <div class="form-inline">
-            <select class="license-year">
-              <option value="">--</option>
-            </select>
+            <div class="year-input-wrap">
+              <input class="license-year year-month-input" type="number" inputmode="numeric" placeholder="----" />
+              <div class="year-stepper" aria-hidden="true">
+                <button class="year-step-btn license-year-increase" type="button" tabindex="-1">▲</button>
+                <button class="year-step-btn license-year-decrease" type="button" tabindex="-1">▼</button>
+              </div>
+            </div>
             <select class="license-month">
               <option value="">--</option>
             </select>
