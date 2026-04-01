@@ -1,0 +1,17 @@
+
+@import "tailwindcss";
+
+@theme {
+  --color-career-blue-start: #1779cd;
+  --color-career-blue-end: #22bebb;
+  --color-career-orange-start: #ed9f09;
+  --color-career-orange-end: #e82c03;
+  --color-career-light-blue: #ecf3fd;
+  --color-career-dark-blue: #2d3770;
+  
+  --font-sans: "Noto Sans JP", sans-serif;
+}
+
+body {
+    font-family: "Noto Sans JP", sans-serif;
+}
